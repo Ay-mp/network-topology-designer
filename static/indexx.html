@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络拓扑智能设计器</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* ===== 原有样式（完整保留） ===== */
+        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a2e; }
+        #mynetwork { width: 100vw; height: 100vh; }
+
+        .toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(10, 10, 30, 0.88);
+            padding: 15px 18px;
+            border-radius: 10px;
+            border: 1px solid #2a2a4a;
+            color: #ccd;
+            font-size: 13px;
+            max-width: 300px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            pointer-events: auto;
+            user-select: none;
+        }
+        .toolbar .title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #4fc3f7;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #2a2a4a;
+            padding-bottom: 6px;
+        }
+        .toolbar .group {
+            margin-bottom: 8px;
+            padding: 5px 6px;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.03);
+        }
+        .toolbar .group-label {
+            font-size: 11px;
+            color: #8899aa;
+            margin-bottom: 4px;
+        }
+        .toolbar button {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid #3a3a5a;
+            color: #eee;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 2px 3px 2px 0;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .toolbar button:hover {
+            background: rgba(79, 195, 247, 0.2);
+            border-color: #4fc3f7;
+        }
+        .toolbar .action-btn {
+            background: rgba(255, 200, 50, 0.15);
+            border-color: #ffc832;
+            color: #ffc832;
+            font-weight: bold;
+            padding: 5px 12px;
+        }
+        .toolbar .action-btn:hover {
+            background: rgba(255, 200, 50, 0.3);
+        }
+        .toolbar .danger-btn {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .toolbar .danger-btn:hover {
+            background: rgba(255, 107, 107, 0.2);
+        }
+        .toolbar .mode-active {
+            background: rgba(79, 195, 247, 0.3);
+            border-color: #4fc3f7;
+            box-shadow: 0 0 10px rgba(79, 195, 247, 0.2);
+        }
+        .toolbar .mode-hint {
+            font-size: 11px;
+            color: #ffd93d;
+            margin-top: 6px;
+            min-height: 18px;
+            border-top: 1px solid #2a2a4a;
+            padding-top: 6px;
+        }
+        .toolbar .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+            border-top: 1px solid #2a2a4a;
+            padding-top: 8px;
+        }
+
+        /* ===== 新增：AI输入区域样式 ===== */
+        .ai-input-area {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #2a2a4a;
+            padding-bottom: 10px;
+        }
+        .ai-input-area textarea {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #3a3a5a;
+            border-radius: 4px;
+            color: #eee;
+            padding: 6px;
+            font-size: 13px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .ai-input-area textarea:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+        .ai-btn-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .ai-btn-row button {
+            flex: 1;
+            padding: 5px;
+            border-radius: 4px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .ai-btn-row .btn-generate {
+            background: #4fc3f7;
+            color: #1a1a2e;
+        }
+        .ai-btn-row .btn-generate:hover {
+            background: #6dd0fa;
+        }
+        .ai-btn-row .btn-parse {
+            background: #ffc832;
+            color: #1a1a2e;
+        }
+        .ai-btn-row .btn-parse:hover {
+            background: #ffd550;
+        }
+        #aiStatus {
+            font-size: 11px;
+            color: #ffd93d;
+            margin-top: 4px;
+            min-height: 18px;
+        }
+
+        /* ===== 原有图例样式 ===== */
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: #ccd;
+            font-size: 13px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border-left: 3px solid #ff6b6b;
+            z-index: 1000;
+            font-family: sans-serif;
+            text-align: right;
+            line-height: 1.6;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+
+        /* ===== 原有路径显示面板 ===== */
+        #pathDisplay {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            color: #00d4ff;
+            font-size: 16px;
+            background: rgba(10, 10, 30, 0.85);
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #00d4ff;
+            z-index: 1000;
+            font-family: 'Courier New', monospace;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* ===== 原有框选矩形 ===== */
+        #selection-box {
+            position: absolute;
+            border: 2px dashed #ff6b6b;
+            background: rgba(255,107,107,0.12);
+            pointer-events: none;
+            display: none;
+            z-index: 999;
+        }
+
+        /* ===== 新增：解析结果面板 ===== */
+        .parse-result-panel {
+            position: absolute;
+            bottom: 120px;
+            left: 30px;
+            background: rgba(10, 10, 30, 0.92);
+            border: 1px solid #4fc3f7;
+            border-radius: 8px;
+            padding: 15px 20px;
+            max-width: 420px;
+            max-height: 320px;
+            overflow-y: auto;
+            color: #ccd;
+            font-size: 13px;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            display: none;
+            pointer-events: auto;
+        }
+        .parse-result-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+        .parse-result-panel::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+        }
+        .parse-result-panel::-webkit-scrollbar-thumb {
+            background: #4fc3f7;
+            border-radius: 2px;
+        }
+        .parse-result-panel .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #2a2a4a;
+            padding-bottom: 6px;
+        }
+        .parse-result-panel .panel-header h4 {
+            margin: 0;
+            color: #4fc3f7;
+            font-size: 14px;
+        }
+        .parse-result-panel .close-btn {
+            background: none;
+            border: none;
+            color: #8899aa;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+        .parse-result-panel .close-btn:hover { color: #ff6b6b; }
+        .parse-result-panel .tech-tags {
+            margin-bottom: 8px;
+            color: #8899aa;
+            font-size: 12px;
+        }
+        .parse-result-panel .tech-tags span {
+            display: inline-block;
+            background: rgba(79,195,247,0.12);
+            color: #4fc3f7;
+            border-radius: 3px;
+            padding: 0 8px;
+            font-size: 11px;
+            margin: 2px 4px 2px 0;
+        }
+        .parse-result-panel .device-item {
+            border-bottom: 1px solid #1a1a3e;
+            padding: 6px 0;
+        }
+        .parse-result-panel .device-item:last-child {
+            border-bottom: none;
+        }
+        .parse-result-panel .device-item strong {
+            color: #ffd93d;
+        }
+        .parse-result-panel .device-item .role-tag {
+            color: #4fc3f7;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+        .parse-result-panel .task-tag {
+            display: inline-block;
+            background: rgba(255,107,107,0.12);
+            color: #ff6b6b;
+            border-radius: 3px;
+            padding: 0 6px;
+            font-size: 11px;
+            margin: 2px 4px 2px 0;
+        }
+        .parse-result-panel .empty-hint {
+            color: #8899aa;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="mynetwork"></div>
+    <div id="selection-box"></div>
+
+    <!-- ===== 工具栏 ===== -->
+    <div class="toolbar">
+        <div class="title">🧩 拓扑设计器</div>
+
+        <!-- ===== 新增：AI输入区域 ===== -->
+        <div class="ai-input-area">
+            <textarea id="promptInput" rows="2" placeholder="例如：R4为ISP，R3是MGRE中心，R5/R6/R7为分支，全网OSPF..."></textarea>
+            <div class="ai-btn-row">
+                <button class="btn-generate" onclick="generateByAI()">🤖 AI生成拓扑</button>
+                <button class="btn-parse" onclick="parseAndShow()">🧠 解析语义</button>
+            </div>
+            <div id="aiStatus">💡 输入需求后点击“解析语义”查看设备角色与任务</div>
+        </div>
+
+        <!-- 接入层 -->
+        <div class="group">
+            <div class="group-label">📶 接入层</div>
+            <button onclick="addDevice('接入交换机')">接入交换机</button>
+            <button onclick="addDevice('无线AP')">无线AP</button>
+            <button onclick="addDevice('光猫/ONU')">光猫</button>
+        </div>
+        <!-- 汇聚层 -->
+        <div class="group">
+            <div class="group-label">🔀 汇聚层</div>
+            <button onclick="addDevice('汇聚交换机')">汇聚交换机</button>
+            <button onclick="addDevice('AC控制器')">AC控制器</button>
+        </div>
+        <!-- 核心层 -->
+        <div class="group">
+            <div class="group-label">⚡ 核心层</div>
+            <button onclick="addDevice('核心交换机')">核心交换机</button>
+            <button onclick="addDevice('路由器')">路由器</button>
+            <button onclick="addDevice('防火墙')">防火墙</button>
+        </div>
+        <!-- 安全 & 业务 -->
+        <div class="group">
+            <div class="group-label">🛡️ 安全 & 业务</div>
+            <button onclick="addDevice('行为管理')">行为管理</button>
+            <button onclick="addDevice('负载均衡')">负载均衡</button>
+            <button onclick="addDevice('服务器')">服务器</button>
+            <button onclick="addDevice('OLT')">OLT</button>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="btn-row">
+            <button id="linkModeBtn" class="action-btn" onclick="toggleLinkMode()">🔗 连线</button>
+            <button id="deleteModeBtn" class="danger-btn" onclick="toggleDeleteMode()">🗑️ 删除</button>
+            <button id="boxSelectBtn" class="action-btn" onclick="toggleBoxSelect()">📐 框选</button>
+            <button onclick="deleteSelectedNodes()" class="danger-btn">🗑️ 删除选中</button>
+        </div>
+        <div class="btn-row">
+            <button id="undoBtn" class="action-btn" onclick="undo()">↩️ 撤销</button>
+            <button id="redoBtn" class="action-btn" onclick="redo()">↪️ 重做</button>
+            <button class="action-btn" onclick="saveTopology()">💾 保存</button>
+            <button class="action-btn" onclick="clearTopology()">🔄 清空</button>
+        </div>
+        <div id="modeHint" class="mode-hint">💡 点击设备添加，拖拽调整位置</div>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+        <span style="color:#ff6b6b;">●</span> 高亮路径 <br>
+        <span style="color:#4fc3f7;">●</span> 普通设备
+    </div>
+
+    <!-- 路径显示 -->
+    <div id="pathDisplay">
+        💡 点击节点选择 <b>起点</b>，再点击另一个节点选择 <b>终点</b> 查看最短路径<br>
+        <span style="font-size: 13px; color: #8899aa;">点击空白处取消选择</span>
+    </div>
+
+    <!-- ===== 新增：解析结果面板 ===== -->
+    <div id="parseResultPanel" class="parse-result-panel">
+        <div class="panel-header">
+            <h4>🧠 语义解析结果</h4>
+            <button class="close-btn" onclick="closeParsePanel()">✕</button>
+        </div>
+        <div id="parseResultContent">
+            <div class="empty-hint">暂无解析结果</div>
+        </div>
+    </div>
+
+    <!-- 引入库 -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
